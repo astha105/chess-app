@@ -27,7 +27,7 @@ class LearnScreen extends StatelessWidget {
             ),
           ),
 
-          // 🌕 Subtle glow
+          // Subtle glow
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -41,7 +41,7 @@ class LearnScreen extends StatelessWidget {
             ),
           ),
 
-          // 🧠 Content
+          //Content
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
@@ -70,7 +70,7 @@ class LearnScreen extends StatelessWidget {
 
                   const SizedBox(height: 35),
 
-                  // 🧩 Play with Coach Card
+                  // Play with Coach Card
                   _buildCard(
                     context,
                     title: "Play with Coach",
@@ -86,7 +86,7 @@ class LearnScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
-                  // ♞ Learn an Opening
+                  // Learn an Opening
                   _buildCard(
                     context,
                     title: "Learn an Opening",
@@ -102,7 +102,7 @@ class LearnScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
-                  // 📚 Lesson Library
+                  // Lesson Library
                   _buildCard(
                     context,
                     title: "Lesson Library",
@@ -118,7 +118,7 @@ class LearnScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
-                  // 🔥 Daily Lesson
+                  // Daily Lesson
                   _buildCard(
                     context,
                     title: "Daily Lesson",
@@ -134,7 +134,7 @@ class LearnScreen extends StatelessWidget {
 
                   const SizedBox(height: 30),
 
-                  // 📈 Progress tracker
+                  // Progress tracker
                   Container(
                     decoration: BoxDecoration(
                       color: const Color(0xFF1F1F1F),
@@ -203,12 +203,12 @@ class LearnScreen extends StatelessWidget {
         ],
       ),
 
-      // ♟️ Bottom Navigation
+      // Bottom Navigation
       bottomNavigationBar: const BottomNavBar(currentIndex: 2),
     );
   }
 
-  // 📦 Card Builder
+  // Card Builder
   Widget _buildCard(
     BuildContext context, {
     required String title,

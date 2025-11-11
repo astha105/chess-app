@@ -55,7 +55,7 @@ class _SignupScreenState extends State<SignupScreen> {
             painter: ChessboardBackgroundPainter(),
           ),
 
-          // 🌕 Soft green glow
+          // Soft green glow
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -72,13 +72,13 @@ class _SignupScreenState extends State<SignupScreen> {
           // ♟️ Transparent overlay for contrast
           Container(color: Colors.black.withOpacity(0.3)),
 
-          // 🧩 Foreground UI
+          // Foreground UI
           SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 60),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 🔙 Top Bar
+                //Top Bar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -115,7 +115,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 const SizedBox(height: 40),
 
-                // 🧠 Title
+                // Title
                 const Text(
                   "Join Chess.\nMake Your Move!",
                   textAlign: TextAlign.center,
@@ -130,7 +130,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 const SizedBox(height: 40),
 
-                // ♟️ Glowing Pawn
+                // Glowing Pawn
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -154,7 +154,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 const SizedBox(height: 50),
 
-                // 📋 Floating Card for Form
+                // Floating Card for Form
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -175,7 +175,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   child: Column(
                     children: [
-                      // ✉️ Email Field (brighter and clearer)
+                      // Email Field (brighter and clearer)
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -200,7 +200,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                       const SizedBox(height: 18),
 
-                      // 🔒 Password Field
+                      // Password Field
                       TextField(
                         controller: _passwordController,
                         obscureText: _obscure,

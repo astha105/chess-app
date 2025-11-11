@@ -132,13 +132,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // ♟️ Background Chessboard Pattern
+          // Background Chessboard Pattern
           CustomPaint(
             size: MediaQuery.of(context).size,
             painter: ChessboardBackgroundPainter(),
           ),
 
-          // ♟️ Subtle Green Spotlight Glow from the top-center
+          // Subtle Green Spotlight Glow from the top-center
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -154,12 +154,12 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // ♟️ Semi-transparent Overlay for elegant contrast
+          // Semi-transparent Overlay for elegant contrast
           Container(
             color: Colors.black.withOpacity(0.4),
           ),
 
-          // ♟️ Foreground UI
+          // Foreground UI
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 60),
@@ -196,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // ♟️ Glowing Pawn with halo effect
+                  // Glowing Pawn with halo effect
                   Stack(
                     alignment: Alignment.center,
                     children: [
@@ -342,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ♟️ Custom Painter for Chessboard Background
+// Custom Painter for Chessboard Background
 class ChessboardBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

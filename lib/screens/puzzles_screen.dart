@@ -58,7 +58,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
               ),
             ),
           ),
-          // 🌕 Subtle glow
+          // Subtle glow
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -71,14 +71,14 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
               ),
             ),
           ),
-          // 🧠 Content
+          // Content
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 🔙 Top title
+                  // Top title
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -97,7 +97,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                   ),
                   const SizedBox(height: 25),
 
-                  // 🧠 Coach + Animated Tip Box
+                  // Coach + Animated Tip Box
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -259,7 +259,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
 
                   const SizedBox(height: 35),
 
-                  // 🧩 Puzzle Rush Card
+                  // Puzzle Rush Card
                   _buildCard(
                     context,
                     title: "Puzzle Rush",
@@ -273,7 +273,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ♞ Daily Puzzle
+                  //Daily Puzzle
                   _buildCard(
                     context,
                     title: "Daily Puzzle",
@@ -288,7 +288,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 📚 Puzzle Battle
+                  // Puzzle Battle
                   _buildCard(
                     context,
                     title: "Puzzle Battle",
@@ -303,7 +303,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 🔥 Custom Puzzles
+                  // Custom Puzzles
                   _buildCard(
                     context,
                     title: "Custom",
@@ -328,7 +328,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
     );
   }
 
-  // 📦 Card Builder Widget
+  // Card Builder Widget
   Widget _buildCard(
     BuildContext context, {
     required String title,

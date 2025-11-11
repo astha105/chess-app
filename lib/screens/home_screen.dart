@@ -28,7 +28,6 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          // 🌕 Subtle glow
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -41,7 +40,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          // 🧠 Content
+          // Content
           SafeArea(
             child: Column(
               children: [
@@ -69,7 +68,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
 
-                      // ♟️ Center Logo (Pawn + "Chess")
+                      // Center Logo (Pawn + "Chess")
                       Row(
                         children: [
                           Image.asset(
@@ -89,7 +88,7 @@ class HomeScreen extends StatelessWidget {
                         ],
                       ),
 
-                      // 🟩 Sign Up (right)
+                      //Sign Up (right)
                       ElevatedButton(
                         onPressed: () {
                           Navigator.push(
@@ -118,14 +117,14 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
 
-                // 🧩 Body Section
+                // Body Section
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     children: [
                       const SizedBox(height: 8),
 
-                      // 🎯 Feature Cards
+                      // Feature Cards
                       _buildFeatureCard(
                         context,
                         title: "Solve Puzzles",
@@ -194,7 +193,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
 
-                // 🟩 Play Button (fixed bottom)
+                //Play Button (fixed bottom)
                 Container(
                   margin: const EdgeInsets.all(16),
                   width: double.infinity,
@@ -224,12 +223,12 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
 
-      // 🔘 Bottom Navigation
+      // Bottom Navigation
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 
-  // 📦 Feature Card Builder Widget
+  // Feature Card Builder Widget
   Widget _buildFeatureCard(
     BuildContext context, {
     required String title,
