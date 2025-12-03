@@ -5,9 +5,14 @@ import '../widgets/bottom_nav_bar.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -28,6 +33,8 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
+
+          // Light green radial glow
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -40,6 +47,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
+
           // Content
           SafeArea(
             child: Column(
@@ -88,7 +96,7 @@ class HomeScreen extends StatelessWidget {
                         ],
                       ),
 
-                      //Sign Up (right)
+                      // Sign Up (right)
                       ElevatedButton(
                         onPressed: () {
                           Navigator.push(
@@ -99,7 +107,10 @@ class HomeScreen extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.greenAccent,
                           foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -124,7 +135,7 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       const SizedBox(height: 8),
 
-                      // Feature Cards
+                      // 5 Feature Cards
                       _buildFeatureCard(
                         context,
                         title: "Solve Puzzles",
@@ -136,8 +147,8 @@ class HomeScreen extends StatelessWidget {
                           Colors.transparent
                         ],
                       ),
-                      const SizedBox(height: 20),
 
+                      const SizedBox(height: 20),
                       _buildFeatureCard(
                         context,
                         title: "Daily Puzzle",
@@ -149,8 +160,8 @@ class HomeScreen extends StatelessWidget {
                           Colors.transparent
                         ],
                       ),
-                      const SizedBox(height: 20),
 
+                      const SizedBox(height: 20),
                       _buildFeatureCard(
                         context,
                         title: "Play Bots",
@@ -162,8 +173,8 @@ class HomeScreen extends StatelessWidget {
                           Colors.transparent
                         ],
                       ),
-                      const SizedBox(height: 20),
 
+                      const SizedBox(height: 20),
                       _buildFeatureCard(
                         context,
                         title: "Play Coach",
@@ -175,8 +186,8 @@ class HomeScreen extends StatelessWidget {
                           Colors.transparent
                         ],
                       ),
-                      const SizedBox(height: 20),
 
+                      const SizedBox(height: 20),
                       _buildFeatureCard(
                         context,
                         title: "Next Lesson",
@@ -188,12 +199,13 @@ class HomeScreen extends StatelessWidget {
                           Colors.transparent
                         ],
                       ),
+
                       const SizedBox(height: 80),
                     ],
                   ),
                 ),
 
-                //Play Button (fixed bottom)
+                // Play Button (fixed bottom)
                 Container(
                   margin: const EdgeInsets.all(16),
                   width: double.infinity,
@@ -223,7 +235,7 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
 
-      // Bottom Navigation
+      // ⭐ IMPORTANT FIX
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
@@ -273,7 +285,9 @@ class HomeScreen extends StatelessWidget {
                 fit: BoxFit.cover,
               ),
             ),
+
             const SizedBox(width: 18),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,6 +312,7 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
+
             const SizedBox(width: 12),
             Image.asset(icon, height: 32),
           ],

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
+import '../screens/chess_screen.dart';
 import '../screens/puzzles_screen.dart';
-import '../screens/learn_screen.dart'; // ✅ Learn screen now active
+import '../screens/learn_screen.dart';
 import '../screens/more_screen.dart';
-// import '../screens/watch_screen.dart'; // 👀 Temporarily commented out
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -17,33 +17,56 @@ class BottomNavBar extends StatelessWidget {
       type: BottomNavigationBarType.fixed,
       selectedItemColor: const Color(0xFF8BC34A),
       unselectedItemColor: Colors.white70,
+
       onTap: (index) {
-        if (index == 0) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        } else if (index == 1) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const PuzzlesScreen()),
-          );
-        } else if (index == 2) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const LearnScreen()),
-          );
-        } else if (index == 3) { // ✅ Added this block
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const MoreScreen()),
-          );
+        if (index == currentIndex) return;
+
+        switch (index) {
+          case 0:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+            break;
+
+          case 1:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ChessScreen()),
+            );
+            break;
+
+          case 2:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const PuzzlesScreen()),
+            );
+            break;
+
+          case 3:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LearnScreen()),
+            );
+            break;
+
+          case 4:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const MoreScreen()),
+            );
+            break;
         }
       },
+
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.person),
           label: "Home",
+        ),
+        BottomNavigationBarItem(
+          icon: ImageIcon(AssetImage("assets/images/chess_pawn.png")),
+          label: "Chess",
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.extension),
@@ -53,10 +76,6 @@ class BottomNavBar extends StatelessWidget {
           icon: Icon(Icons.school),
           label: "Learn",
         ),
-        // BottomNavigationBarItem(
-        //   icon: Icon(Icons.visibility),
-        //   label: "Watch",
-        // ),
         BottomNavigationBarItem(
           icon: Icon(Icons.menu),
           label: "More",
