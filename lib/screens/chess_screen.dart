@@ -1,9 +1,12 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import '../widgets/bottom_nav_bar.dart';
+import '../services/pgn_recorder.dart';
+import 'analysis_screen.dart';
 
 class ChessScreen extends StatefulWidget {
   const ChessScreen({super.key});
@@ -23,6 +26,12 @@ class _ChessScreenState extends State<ChessScreen> {
   List<List<int>> validMoves = [];
   bool isLoadingHint = false;
   String? hintMove;
+  int? hintFromRow;
+  int? hintFromCol;
+  int? hintToRow;
+  int? hintToCol;
+
+  final PGNRecorder pgnRecorder = PGNRecorder();
 
   @override
   void initState() {
@@ -43,10 +52,170 @@ class _ChessScreenState extends State<ChessScreen> {
     ];
   }
 
+  // ---------------------
+  // PREMIUM ONLINE ANALYSIS
+  // ---------------------
+  Future<Map<String, dynamic>> analyzeGameOnline() async {
+    List<String> moves = [...pgnRecorder.moves];
+    if (moves.isEmpty) return {};
+
+    List<List<String>> simBoard =
+        board.map((row) => [...row]).toList();
+
+    bool simWhiteTurn = true;
+
+    double? lastEval;
+    double whiteAcc = 100;
+    double blackAcc = 100;
+
+    List<Map<String, dynamic>> analysis = [];
+
+    for (int i = 0; i < moves.length; i++) {
+      String move = moves[i];
+
+      String fen = boardToFenFrom(simBoard, simWhiteTurn);
+
+      final response = await http.get(
+        Uri.parse(
+            "https://stockfish.online/api/s/v2.php?fen=$fen&depth=14"),
+      );
+
+      final data = json.decode(response.body);
+
+      String bestMove = data["bestmove"]?.split(" ")[1] ?? "";
+      double eval =
+          ((data["evaluation"] ?? 0) * 100).toDouble();
+
+      String tag = "Good";
+      if (lastEval != null) {
+        double drop = (lastEval - eval).abs();
+
+        if (drop > 300)
+          tag = "Blunder";
+        else if (drop > 150)
+          tag = "Mistake";
+        else if (drop > 80)
+          tag = "Inaccuracy";
+      }
+
+      if (simWhiteTurn) {
+        whiteAcc -= tag == "Blunder"
+            ? 10
+            : tag == "Mistake"
+                ? 5
+                : tag == "Inaccuracy"
+                    ? 2
+                    : 0;
+      } else {
+        blackAcc -= tag == "Blunder"
+            ? 10
+            : tag == "Mistake"
+                ? 5
+                : tag == "Inaccuracy"
+                    ? 2
+                    : 0;
+      }
+
+      analysis.add({
+        "moveNumber": (i ~/ 2) + 1,
+        "played": move,
+        "best": bestMove,
+        "eval": eval,
+        "tag": tag,
+      });
+
+      applyMoveOnBoard(simBoard, move);
+      simWhiteTurn = !simWhiteTurn;
+      lastEval = eval;
+    }
+
+    return {
+      "moves": analysis,
+      "whiteAccuracy": whiteAcc.clamp(0, 100).floor(),
+      "blackAccuracy": blackAcc.clamp(0, 100).floor(),
+    };
+  }
+
+  String boardToFenFrom(List<List<String>> b, bool whiteTurn) {
+    String fen = "";
+    for (int i = 0; i < 8; i++) {
+      int empty = 0;
+      for (int j = 0; j < 8; j++) {
+        if (b[i][j].isEmpty) {
+          empty++;
+        } else {
+          if (empty > 0) {
+            fen += empty.toString();
+            empty = 0;
+          }
+          fen += b[i][j];
+        }
+      }
+      if (empty > 0) fen += empty.toString();
+      if (i < 7) fen += "/";
+    }
+    fen += whiteTurn ? " w KQkq - 0 1" : " b KQkq - 0 1";
+    return fen;
+  }
+
+  void applyMoveOnBoard(List<List<String>> b, String move) {
+    int fromCol = move.codeUnitAt(0) - 97;
+    int fromRow = 8 - int.parse(move[1]);
+    int toCol = move.codeUnitAt(2) - 97;
+    int toRow = 8 - int.parse(move[3]);
+
+    b[toRow][toCol] = b[fromRow][fromCol];
+    b[fromRow][fromCol] = "";
+  }
+
+  // -----------------------------
+
+  Future<void> getHint() async {
+    if (isLoadingHint || !isWhiteTurn || isThinking) return;
+
+    setState(() {
+      isLoadingHint = true;
+      hintFromRow = null;
+      hintFromCol = null;
+      hintToRow = null;
+      hintToCol = null;
+    });
+
+    try {
+      String fen = boardToFen();
+      final response = await http.get(
+        Uri.parse(
+            "https://stockfish.online/api/s/v2.php?fen=$fen&depth=12"),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        String bestMove = data["bestmove"]?.split(" ")[1] ?? "";
+
+        if (bestMove.length >= 4) {
+          int fc = bestMove.codeUnitAt(0) - 97;
+          int fr = 8 - int.parse(bestMove[1]);
+          int tc = bestMove.codeUnitAt(2) - 97;
+          int tr = 8 - int.parse(bestMove[3]);
+
+          setState(() {
+            hintMove = bestMove;
+            hintFromRow = fr;
+            hintFromCol = fc;
+            hintToRow = tr;
+            hintToCol = tc;
+            isLoadingHint = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() => isLoadingHint = false);
+    }
+  }
+
   String getPieceImage(String piece) {
     if (piece.isEmpty) return '';
-    
-    const Map<String, String> pieceImages = {
+    const Map<String, String> map = {
       'K': 'assets/images/chess/white_king.png',
       'Q': 'assets/images/chess/white_queen.png',
       'R': 'assets/images/chess/white_rook.png',
@@ -60,8 +229,7 @@ class _ChessScreenState extends State<ChessScreen> {
       'n': 'assets/images/chess/black_knight.png',
       'p': 'assets/images/chess/black_pawn.png',
     };
-    
-    return pieceImages[piece] ?? '';
+    return map[piece] ?? '';
   }
 
   void calculateValidMoves(int row, int col) {
@@ -82,93 +250,95 @@ class _ChessScreenState extends State<ChessScreen> {
     String target = board[toRow][toCol];
 
     if (target.isNotEmpty) {
-      if (piece.toUpperCase() == piece && target.toUpperCase() == target) return false;
-      if (piece.toLowerCase() == piece && target.toLowerCase() == target) return false;
+      if (piece.toUpperCase() == piece && target.toUpperCase() == target)
+        return false;
+
+      if (piece.toLowerCase() == piece && target.toLowerCase() == target)
+        return false;
     }
 
     if (piece.toLowerCase() == 'p') {
-      int direction = piece == 'P' ? -1 : 1;
-      int startRow = piece == 'P' ? 6 : 1;
+      int dir = piece == 'P' ? -1 : 1;
+      int start = piece == 'P' ? 6 : 1;
 
       if (fromCol == toCol && target.isEmpty) {
-        if (toRow == fromRow + direction) return true;
-        if (fromRow == startRow &&
-            toRow == fromRow + 2 * direction &&
-            board[fromRow + direction][fromCol].isEmpty) {
-          return true;
-        }
+        if (toRow == fromRow + dir) return true;
+        if (fromRow == start &&
+            toRow == fromRow + 2 * dir &&
+            board[fromRow + dir][fromCol].isEmpty) return true;
       }
 
       if ((toCol == fromCol + 1 || toCol == fromCol - 1) &&
-          toRow == fromRow + direction &&
-          target.isNotEmpty) {
-        return true;
-      }
+          toRow == fromRow + dir &&
+          target.isNotEmpty) return true;
     }
 
     if (piece.toLowerCase() == 'r') {
-      if (fromRow == toRow || fromCol == toCol) {
+      if (fromRow == toRow || fromCol == toCol)
         return isPathClear(fromRow, fromCol, toRow, toCol);
-      }
     }
 
     if (piece.toLowerCase() == 'n') {
-      int rowDiff = (toRow - fromRow).abs();
-      int colDiff = (toCol - fromCol).abs();
-      return (rowDiff == 2 && colDiff == 1) || (rowDiff == 1 && colDiff == 2);
+      int r = (toRow - fromRow).abs();
+      int c = (toCol - fromCol).abs();
+      return (r == 2 && c == 1) || (r == 1 && c == 2);
     }
 
     if (piece.toLowerCase() == 'b') {
-      if ((toRow - fromRow).abs() == (toCol - fromCol).abs()) {
+      if ((toRow - fromRow).abs() == (toCol - fromCol).abs())
         return isPathClear(fromRow, fromCol, toRow, toCol);
-      }
     }
 
     if (piece.toLowerCase() == 'q') {
       if (fromRow == toRow ||
           fromCol == toCol ||
-          (toRow - fromRow).abs() == (toCol - fromCol).abs()) {
+          (toRow - fromRow).abs() == (toCol - fromCol).abs())
         return isPathClear(fromRow, fromCol, toRow, toCol);
-      }
     }
 
     if (piece.toLowerCase() == 'k') {
-      return (toRow - fromRow).abs() <= 1 && (toCol - fromCol).abs() <= 1;
+      return (toRow - fromRow).abs() <= 1 &&
+          (toCol - fromCol).abs() <= 1;
     }
 
     return false;
   }
 
-  bool isPathClear(int fromRow, int fromCol, int toRow, int toCol) {
-    int rowDir = toRow > fromRow ? 1 : (toRow < fromRow ? -1 : 0);
-    int colDir = toCol > fromCol ? 1 : (toCol < fromCol ? -1 : 0);
+  bool isPathClear(int fr, int fc, int tr, int tc) {
+    int rd = tr > fr ? 1 : (tr < fr ? -1 : 0);
+    int cd = tc > fc ? 1 : (tc < fc ? -1 : 0);
 
-    int currentRow = fromRow + rowDir;
-    int currentCol = fromCol + colDir;
+    int r = fr + rd;
+    int c = fc + cd;
 
-    while (currentRow != toRow || currentCol != toCol) {
-      if (board[currentRow][currentCol].isNotEmpty) return false;
-      currentRow += rowDir;
-      currentCol += colDir;
+    while (r != tr || c != tc) {
+      if (board[r][c].isNotEmpty) return false;
+      r += rd;
+      c += cd;
     }
-
     return true;
   }
 
-  void makeMove(int fromRow, int fromCol, int toRow, int toCol) {
+  void makeMove(int fr, int fc, int tr, int tc) {
     setState(() {
-      String piece = board[fromRow][fromCol];
-      board[toRow][toCol] = piece;
-      board[fromRow][fromCol] = '';
+      board[tr][tc] = board[fr][fc];
+      board[fr][fc] = "";
 
       String move =
-          '${String.fromCharCode(97 + fromCol)}${8 - fromRow}${String.fromCharCode(97 + toCol)}${8 - toRow}';
+          '${String.fromCharCode(97 + fc)}${8 - fr}${String.fromCharCode(97 + tc)}${8 - tr}';
+
       moveHistory.add(move);
+      pgnRecorder.addMove(move);
 
       isWhiteTurn = !isWhiteTurn;
       selectedRow = null;
       selectedCol = null;
       validMoves.clear();
+      hintFromRow = null;
+      hintFromCol = null;
+      hintToRow = null;
+      hintToCol = null;
+      hintMove = null;
 
       if (!isWhiteTurn) {
         gameStatus = "Computer is thinking...";
@@ -185,25 +355,27 @@ class _ChessScreenState extends State<ChessScreen> {
       String fen = boardToFen();
       final response = await http.get(
         Uri.parse(
-            'https://stockfish.online/api/s/v2.php?fen=$fen&depth=10'),
+            "https://stockfish.online/api/s/v2.php?fen=$fen&depth=12"),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        String bestMove = data['bestmove']?.split(' ')[1] ?? '';
+        String bestMove = data["bestmove"]?.split(" ")[1] ?? "";
 
         if (bestMove.length >= 4) {
-          int fromCol = bestMove.codeUnitAt(0) - 97;
-          int fromRow = 8 - int.parse(bestMove[1]);
-          int toCol = bestMove.codeUnitAt(2) - 97;
-          int toRow = 8 - int.parse(bestMove[3]);
+          int fc = bestMove.codeUnitAt(0) - 97;
+          int fr = 8 - int.parse(bestMove[1]);
+          int tc = bestMove.codeUnitAt(2) - 97;
+          int tr = 8 - int.parse(bestMove[3]);
 
-          await Future.delayed(const Duration(milliseconds: 500));
+          await Future.delayed(const Duration(milliseconds: 400));
 
           setState(() {
-            board[toRow][toCol] = board[fromRow][fromCol];
-            board[fromRow][fromCol] = '';
-            moveHistory.add(bestMove);
+            board[tr][tc] = board[fr][fc];
+            board[fr][fc] = "";
+
+            pgnRecorder.addMove(bestMove);
+
             isWhiteTurn = true;
             gameStatus = "Your turn (White)";
             isThinking = false;
@@ -211,31 +383,7 @@ class _ChessScreenState extends State<ChessScreen> {
         }
       }
     } catch (e) {
-      makeRandomMove();
-    }
-  }
-
-  void makeRandomMove() {
-    for (int i = 0; i < 8; i++) {
-      for (int j = 0; j < 8; j++) {
-        String piece = board[i][j];
-        if (piece.isNotEmpty && piece.toLowerCase() == piece) {
-          for (int ti = 0; ti < 8; ti++) {
-            for (int tj = 0; tj < 8; tj++) {
-              if (isValidMove(i, j, ti, tj)) {
-                setState(() {
-                  board[ti][tj] = board[i][j];
-                  board[i][j] = '';
-                  isWhiteTurn = true;
-                  gameStatus = "Your turn (White)";
-                  isThinking = false;
-                });
-                return;
-              }
-            }
-          }
-        }
-      }
+      isThinking = false;
     }
   }
 
@@ -255,89 +403,10 @@ class _ChessScreenState extends State<ChessScreen> {
         }
       }
       if (empty > 0) fen += empty.toString();
-      if (i < 7) fen += '/';
+      if (i < 7) fen += "/";
     }
-
-    fen += isWhiteTurn ? ' w KQkq - 0 1' : ' b KQkq - 0 1';
+    fen += isWhiteTurn ? " w KQkq - 0 1" : " b KQkq - 0 1";
     return fen;
-  }
-
-  Future<void> getHint() async {
-    if (!isWhiteTurn || isThinking) return;
-    
-    setState(() => isLoadingHint = true);
-    try {
-      String fen = boardToFen();
-      final response = await http.get(
-        Uri.parse(
-            'https://stockfish.online/api/s/v2.php?fen=$fen&depth=10'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        String bestMove = data['bestmove']?.split(' ')[1] ?? '';
-
-        if (bestMove.length >= 4) {
-          setState(() {
-            hintMove = bestMove;
-            isLoadingHint = false;
-          });
-          
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              int fromCol = bestMove.codeUnitAt(0) - 97;
-              int fromRow = 8 - int.parse(bestMove[1]);
-              int toCol = bestMove.codeUnitAt(2) - 97;
-              int toRow = 8 - int.parse(bestMove[3]);
-              
-              String fromSquare = '${String.fromCharCode(97 + fromCol)}${8 - fromRow}';
-              String toSquare = '${String.fromCharCode(97 + toCol)}${8 - toRow}';
-              String piece = board[fromRow][fromCol];
-              String pieceName = {
-                'P': 'Pawn',
-                'N': 'Knight',
-                'B': 'Bishop',
-                'R': 'Rook',
-                'Q': 'Queen',
-                'K': 'King',
-              }[piece] ?? 'Piece';
-              
-              return AlertDialog(
-                backgroundColor: const Color(0xFF1E1E1E),
-                title: const Text(
-                  '💡 Hint',
-                  style: TextStyle(color: Colors.white),
-                ),
-                content: Text(
-                  'Best move: $pieceName from $fromSquare to $toSquare',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
-                      'Got it!',
-                      style: TextStyle(color: Colors.blue),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        }
-      }
-    } catch (e) {
-      setState(() => isLoadingHint = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not get hint. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   void resetGame() {
@@ -348,261 +417,328 @@ class _ChessScreenState extends State<ChessScreen> {
       isWhiteTurn = true;
       isThinking = false;
       gameStatus = "Your turn (White)";
-      moveHistory = [];
       validMoves.clear();
+      moveHistory.clear();
       hintMove = null;
       isLoadingHint = false;
+      hintFromRow = null;
+      hintFromCol = null;
+      hintToRow = null;
+      hintToCol = null;
+      pgnRecorder.moves.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: Colors.black,
 
-     appBar: AppBar(
-  backgroundColor: const Color(0xFF1E1E1E),
-  centerTitle: true,
-
-  title: Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Image.asset(
-        'assets/images/chess_pawn.png',
-        height: 25,
-        width: 25,
-      ),
-      const SizedBox(width: 8),
-      const Text(
-        'Chess',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 25
-          ,
-          fontWeight: FontWeight.bold,   // ⭐ BOLD
+      appBar: AppBar(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/chess_pawn.png',
+              height: 28,
+              width: 28,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              "Chess",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
+        backgroundColor: Colors.black,
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              isLoadingHint ? Icons.hourglass_empty : Icons.lightbulb_outline,
+              color: Colors.white,
+            ),
+            onPressed: getHint,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: resetGame,
+          ),
+        ],
       ),
-    ],
-  ),
-
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.lightbulb_outline, color: Colors.white),
-      onPressed: isLoadingHint ? null : getHint,
-    ),
-    IconButton(
-      icon: const Icon(Icons.refresh, color: Colors.white),
-      onPressed: resetGame,
-    ),
-  ],
-),
-
 
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 36),  
-            child: Text(
-              gameStatus,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+          Expanded(
+            child: LayoutBuilder(
+              builder: (_, c) {
+                double availableWidth = c.maxWidth;
+                double boardSize = availableWidth - 60;
+
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(width: 30),
+                          SizedBox(
+                            width: boardSize,
+                            height: 30,
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceEvenly,
+                              children: List.generate(8, (i) {
+                                return SizedBox(
+                                  width: boardSize / 8,
+                                  child: Center(
+                                    child: Text(
+                                      String.fromCharCode(97 + i),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 30),
+                        ],
+                      ),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 30,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(8, (i) {
+                                return SizedBox(
+                                  height: boardSize / 8,
+                                  child: Center(
+                                    child: Text(
+                                      '${8 - i}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+
+                          Container(
+                            width: boardSize,
+                            height: boardSize,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                  color: Colors.white24, width: 3),
+                            ),
+                            child: GridView.builder(
+                              physics:
+                                  const NeverScrollableScrollPhysics(),
+                              itemCount: 64,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 8,
+                              ),
+                              itemBuilder: (_, index) {
+                                int row = index ~/ 8;
+                                int col = index % 8;
+                                bool isLight =
+                                    (row + col) % 2 == 0;
+
+                                bool isSelected =
+                                    selectedRow == row &&
+                                        selectedCol == col;
+
+                                bool isValidSquare = validMoves.any(
+                                    (m) =>
+                                        m[0] == row &&
+                                        m[1] == col);
+
+                                bool isHintFrom =
+                                    hintFromRow == row &&
+                                        hintFromCol == col;
+                                bool isHintTo =
+                                    hintToRow == row &&
+                                        hintToCol == col;
+
+                                String piece = board[row][col];
+                                String image = getPieceImage(piece);
+
+                                return GestureDetector(
+                                  onTap: () => handleTap(row, col),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.yellow
+                                              .withOpacity(0.5)
+                                          : isHintFrom ||
+                                                  isHintTo
+                                              ? Colors.blue
+                                                  .withOpacity(0.4)
+                                              : (isLight
+                                                  ? const Color(
+                                                      0xFFEEEED2)
+                                                  : const Color(
+                                                      0xFF769656)),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        if (isValidSquare)
+                                          Center(
+                                            child: Container(
+                                              width: piece.isEmpty
+                                                  ? 12
+                                                  : 36,
+                                              height: piece.isEmpty
+                                                  ? 12
+                                                  : 36,
+                                              decoration:
+                                                  BoxDecoration(
+                                                shape:
+                                                    BoxShape.circle,
+                                                color: piece.isEmpty
+                                                    ? Colors
+                                                        .black26
+                                                    : Colors
+                                                        .transparent,
+                                                border: piece
+                                                        .isNotEmpty
+                                                    ? Border.all(
+                                                        color: Colors
+                                                            .redAccent,
+                                                        width: 3,
+                                                      )
+                                                    : null,
+                                              ),
+                                            ),
+                                          ),
+                                        if (image.isNotEmpty)
+                                          Center(
+                                            child: Image.asset(
+                                              image,
+                                              fit: BoxFit.contain,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
+                          SizedBox(
+                            width: 30,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(8, (i) {
+                                return SizedBox(
+                                  height: boardSize / 8,
+                                  child: Center(
+                                    child: Text(
+                                      '${8 - i}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(width: 30),
+                          SizedBox(
+                            width: boardSize,
+                            height: 30,
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceEvenly,
+                              children: List.generate(8, (i) {
+                                return SizedBox(
+                                  width: boardSize / 8,
+                                  child: Center(
+                                    child: Text(
+                                      String.fromCharCode(97 + i),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 30),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // ---------- CENTERED GAME STATUS ----------
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                gameStatus,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
               ),
             ),
           ),
 
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                double availableHeight = constraints.maxHeight;
-                double availableWidth = constraints.maxWidth;
-                double boardSize = availableWidth < availableHeight 
-                    ? availableWidth - 16 
-                    : availableHeight - 16;
-                
-                return Center(
-                  child: SizedBox(
-                    width: boardSize,
-                    height: boardSize,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 20,
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 20),
-                              ...List.generate(8, (index) {
-                                return Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      String.fromCharCode(97 + index),
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                              const SizedBox(width: 20),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-
-                        Expanded(
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                child: Column(
-                                  children: List.generate(8, (index) {
-                                    return Expanded(
-                                      child: Center(
-                                        child: Text(
-                                          '${8 - index}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ),
-                              ),
-                              
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.white24, width: 2),
-                                  ),
-                                  child: GridView.builder(
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 8,
-                                    ),
-                                    itemCount: 64,
-                                    itemBuilder: (context, index) {
-                                      int row = index ~/ 8;
-                                      int col = index % 8;
-
-                                      bool isLight = (row + col) % 2 == 0;
-                                      bool isSelected = selectedRow == row && selectedCol == col;
-                                      bool isValidMoveSquare = validMoves.any(
-                                        (m) => m[0] == row && m[1] == col,
-                                      );
-
-                                      String piece = board[row][col];
-                                      String pieceImage = getPieceImage(piece);
-
-                                      return GestureDetector(
-                                        onTap: isThinking ? null : () => handleTap(row, col),
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? Colors.yellow.withOpacity(0.5)
-                                                : (isLight
-                                                    ? const Color(0xFFEEEED2)
-                                                    : const Color(0xFF769656)),
-                                          ),
-                                          child: Stack(
-                                            children: [
-                                              if (isValidMoveSquare)
-                                                Center(
-                                                  child: Container(
-                                                    width: piece.isEmpty ? 12 : 38,
-                                                    height: piece.isEmpty ? 12 : 38,
-                                                    decoration: BoxDecoration(
-                                                      color: piece.isEmpty
-                                                          ? Colors.black.withOpacity(0.2)
-                                                          : Colors.transparent,
-                                                      shape: BoxShape.circle,
-                                                      border: piece.isNotEmpty
-                                                          ? Border.all(
-                                                              color: Colors.red.withOpacity(0.6),
-                                                              width: 2.5,
-                                                            )
-                                                          : null,
-                                                    ),
-                                                  ),
-                                                ),
-
-                                              if (pieceImage.isNotEmpty)
-                                                Center(
-                                                  child: Padding(
-                                                    padding: const EdgeInsets.all(3.0),
-                                                    child: Image.asset(
-                                                      pieceImage,
-                                                      fit: BoxFit.contain,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              
-                              SizedBox(
-                                width: 20,
-                                child: Column(
-                                  children: List.generate(8, (index) {
-                                    return Expanded(
-                                      child: Center(
-                                        child: Text(
-                                          '${8 - index}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 2),
-
-                        SizedBox(
-                          height: 20,
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 20),
-                              ...List.generate(8, (index) {
-                                return Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      String.fromCharCode(97 + index),
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                              const SizedBox(width: 20),
-                            ],
-                          ),
-                        ),
-                      ],
+          // ---------- MOVED ANALYSIS BUTTON TO BOTTOM RIGHT ----------
+          Padding(
+            padding: const EdgeInsets.only(right: 20, bottom: 6),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                icon: const Icon(
+                  Icons.analytics_outlined,
+                  color: Colors.green,
+                  size: 30,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AnalysisScreen(
+                        result: analyzeGameOnline(),
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -629,7 +765,8 @@ class _ChessScreenState extends State<ChessScreen> {
         makeMove(selectedRow!, selectedCol!, row, col);
       } else {
         if (board[row][col].isNotEmpty &&
-            board[row][col].toUpperCase() == board[row][col]) {
+            board[row][col].toUpperCase() ==
+                board[row][col]) {
           setState(() {
             selectedRow = row;
             selectedCol = col;
