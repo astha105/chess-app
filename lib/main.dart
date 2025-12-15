@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; 
 
-import 'screens/home_screen.dart'; // starting screen
+import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase in background 
-  Firebase.initializeApp(
+  await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
@@ -22,9 +21,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Your App Name',
+      title: 'Chess',
       theme: ThemeData.dark(),
-      home: const HomeScreen(), // or your AuthPage / LoginScreen
+      home: const HomeScreen(),
     );
   }
 }
