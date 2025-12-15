@@ -476,248 +476,267 @@ class _ChessScreenState extends State<ChessScreen> {
             child: LayoutBuilder(
               builder: (_, c) {
                 double availableWidth = c.maxWidth;
-                double boardSize = availableWidth - 60;
+                double availableHeight = c.maxHeight;
+                
+                // Calculate board size to fit both width and height
+                double maxBoardSize = availableWidth < availableHeight 
+                    ? availableWidth - 80 
+                    : availableHeight - 100;
+                
+                // Clamp board size between reasonable values
+                double boardSize = maxBoardSize.clamp(280, 550);
 
                 return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 10),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(width: 30),
-                          SizedBox(
-                            width: boardSize,
-                            height: 30,
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceEvenly,
-                              children: List.generate(8, (i) {
-                                return SizedBox(
-                                  width: boardSize / 8,
-                                  child: Center(
-                                    child: Text(
-                                      String.fromCharCode(97 + i),
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                        // Top file labels (a-h)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(width: 25),
+                            SizedBox(
+                              width: boardSize,
+                              height: 20,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: List.generate(8, (i) {
+                                  return SizedBox(
+                                    width: boardSize / 8,
+                                    child: Center(
+                                      child: Text(
+                                        String.fromCharCode(97 + i),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: 30),
-                        ],
-                      ),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 30,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(8, (i) {
-                                return SizedBox(
-                                  height: boardSize / 8,
-                                  child: Center(
-                                    child: Text(
-                                      '${8 - i}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-
-                          Container(
-                            width: boardSize,
-                            height: boardSize,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: Colors.white24, width: 3),
-                            ),
-                            child: GridView.builder(
-                              physics:
-                                  const NeverScrollableScrollPhysics(),
-                              itemCount: 64,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 8,
+                                  );
+                                }),
                               ),
-                              itemBuilder: (_, index) {
-                                int row = index ~/ 8;
-                                int col = index % 8;
-                                bool isLight =
-                                    (row + col) % 2 == 0;
+                            ),
+                            const SizedBox(width: 25),
+                          ],
+                        ),
 
-                                bool isSelected =
-                                    selectedRow == row &&
-                                        selectedCol == col;
-
-                                bool isValidSquare = validMoves.any(
-                                    (m) =>
-                                        m[0] == row &&
-                                        m[1] == col);
-
-                                bool isHintFrom =
-                                    hintFromRow == row &&
-                                        hintFromCol == col;
-                                bool isHintTo =
-                                    hintToRow == row &&
-                                        hintToCol == col;
-
-                                String piece = board[row][col];
-                                String image = getPieceImage(piece);
-
-                                return GestureDetector(
-                                  onTap: () => handleTap(row, col),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? Colors.yellow
-                                              .withOpacity(0.5)
-                                          : isHintFrom ||
-                                                  isHintTo
-                                              ? Colors.blue
-                                                  .withOpacity(0.4)
-                                              : (isLight
-                                                  ? const Color(
-                                                      0xFFEEEED2)
-                                                  : const Color(
-                                                      0xFF769656)),
+                        // Chess board with rank labels
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Left rank labels (8-1)
+                            SizedBox(
+                              width: 25,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(8, (i) {
+                                  return SizedBox(
+                                    height: boardSize / 8,
+                                    child: Center(
+                                      child: Text(
+                                        '${8 - i}',
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                    child: Stack(
-                                      children: [
-                                        if (isValidSquare)
-                                          Center(
-                                            child: Container(
-                                              width: piece.isEmpty
-                                                  ? 12
-                                                  : 36,
-                                              height: piece.isEmpty
-                                                  ? 12
-                                                  : 36,
-                                              decoration:
-                                                  BoxDecoration(
-                                                shape:
-                                                    BoxShape.circle,
-                                                color: piece.isEmpty
-                                                    ? Colors
-                                                        .black26
-                                                    : Colors
-                                                        .transparent,
-                                                border: piece
-                                                        .isNotEmpty
-                                                    ? Border.all(
-                                                        color: Colors
-                                                            .redAccent,
-                                                        width: 3,
-                                                      )
-                                                    : null,
+                                  );
+                                }),
+                              ),
+                            ),
+
+                            // The chess board
+                            Container(
+                              width: boardSize,
+                              height: boardSize,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: Colors.white24, width: 2),
+                              ),
+                              child: GridView.builder(
+                                physics:
+                                    const NeverScrollableScrollPhysics(),
+                                itemCount: 64,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 8,
+                                ),
+                                itemBuilder: (_, index) {
+                                  int row = index ~/ 8;
+                                  int col = index % 8;
+                                  bool isLight =
+                                      (row + col) % 2 == 0;
+
+                                  bool isSelected =
+                                      selectedRow == row &&
+                                          selectedCol == col;
+
+                                  bool isValidSquare = validMoves.any(
+                                      (m) =>
+                                          m[0] == row &&
+                                          m[1] == col);
+
+                                  bool isHintFrom =
+                                      hintFromRow == row &&
+                                          hintFromCol == col;
+                                  bool isHintTo =
+                                      hintToRow == row &&
+                                          hintToCol == col;
+
+                                  String piece = board[row][col];
+                                  String image = getPieceImage(piece);
+
+                                  return GestureDetector(
+                                    onTap: () => handleTap(row, col),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? Colors.yellow
+                                                .withOpacity(0.5)
+                                            : isHintFrom ||
+                                                    isHintTo
+                                                ? Colors.blue
+                                                    .withOpacity(0.4)
+                                                : (isLight
+                                                    ? const Color(
+                                                        0xFFEEEED2)
+                                                    : const Color(
+                                                        0xFF769656)),
+                                      ),
+                                      child: Stack(
+                                        children: [
+                                          if (isValidSquare)
+                                            Center(
+                                              child: Container(
+                                                width: piece.isEmpty
+                                                    ? 12
+                                                    : 36,
+                                                height: piece.isEmpty
+                                                    ? 12
+                                                    : 36,
+                                                decoration:
+                                                    BoxDecoration(
+                                                  shape:
+                                                      BoxShape.circle,
+                                                  color: piece.isEmpty
+                                                      ? Colors
+                                                          .black26
+                                                      : Colors
+                                                          .transparent,
+                                                  border: piece
+                                                          .isNotEmpty
+                                                      ? Border.all(
+                                                          color: Colors
+                                                              .redAccent,
+                                                          width: 3,
+                                                        )
+                                                      : null,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        if (image.isNotEmpty)
-                                          Center(
-                                            child: Image.asset(
-                                              image,
-                                              fit: BoxFit.contain,
+                                          if (image.isNotEmpty)
+                                            Center(
+                                              child: Image.asset(
+                                                image,
+                                                fit: BoxFit.contain,
+                                              ),
                                             ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-
-                          SizedBox(
-                            width: 30,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(8, (i) {
-                                return SizedBox(
-                                  height: boardSize / 8,
-                                  child: Center(
-                                    child: Text(
-                                      '${8 - i}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(width: 30),
-                          SizedBox(
-                            width: boardSize,
-                            height: 30,
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceEvenly,
-                              children: List.generate(8, (i) {
-                                return SizedBox(
-                                  width: boardSize / 8,
-                                  child: Center(
-                                    child: Text(
-                                      String.fromCharCode(97 + i),
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                            // Right rank labels (8-1)
+                            SizedBox(
+                              width: 25,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(8, (i) {
+                                  return SizedBox(
+                                    height: boardSize / 8,
+                                    child: Center(
+                                      child: Text(
+                                        '${8 - i}',
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
+                                  );
+                                }),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 30),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+
+                        // Bottom file labels (a-h)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(width: 25),
+                            SizedBox(
+                              width: boardSize,
+                              height: 20,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: List.generate(8, (i) {
+                                  return SizedBox(
+                                    width: boardSize / 8,
+                                    child: Center(
+                                      child: Text(
+                                        String.fromCharCode(97 + i),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                            const SizedBox(width: 25),
+                          ],
+                        ),
+
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ),
                 );
               },
             ),
           ),
 
-          // ---------- CENTERED GAME STATUS ----------
+          // Game status
           Center(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 gameStatus,
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold),
               ),
             ),
           ),
 
-          // ---------- MOVED ANALYSIS BUTTON TO BOTTOM RIGHT ----------
+          // Analysis button
           Padding(
             padding: const EdgeInsets.only(right: 20, bottom: 6),
             child: Align(
@@ -726,7 +745,7 @@ class _ChessScreenState extends State<ChessScreen> {
                 icon: const Icon(
                   Icons.analytics_outlined,
                   color: Colors.green,
-                  size: 30,
+                  size: 28,
                 ),
                 onPressed: () {
                   Navigator.push(
