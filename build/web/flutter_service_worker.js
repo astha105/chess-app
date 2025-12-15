@@ -3,11 +3,11 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"flutter_bootstrap.js": "95dadcaa19a26c4783252c4ce65de8bf",
+const RESOURCES = {"flutter_bootstrap.js": "67bfd1fb863b8e5f8f4f246cf0cd2ac3",
 "version.json": "ebe8e1fac52ae8e38f2af9bc55658c7f",
 "index.html": "733e4dc61ea9847f0b71e51c36dfd754",
 "/": "733e4dc61ea9847f0b71e51c36dfd754",
-"main.dart.js": "4c930bfe0023156e7a8d562b2fb5a959",
+"main.dart.js": "b1b696d2d282a8dd4f80936f3db91753",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1",
@@ -21,7 +21,7 @@ const RESOURCES = {"flutter_bootstrap.js": "95dadcaa19a26c4783252c4ce65de8bf",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/shaders/stretch_effect.frag": "40d68efbbf360632f614c731219e95f0",
 "assets/AssetManifest.bin": "b0082da4f857820ff4a0572d34330747",
-"assets/fonts/MaterialIcons-Regular.otf": "a48f0ef27af4cc447dcee13b8302ad09",
+"assets/fonts/MaterialIcons-Regular.otf": "303d3f37d42b0a8c835f0f15abc44137",
 "assets/assets/images/lesson_icon.png": "8d12f3cb32828f004ff414649984da1c",
 "assets/assets/images/board_dark.png": "7bdbb060389ede37ffb0dad5ee9636da",
 "assets/assets/images/chess_pawn.png": "d1ab238d397a6c061b2dc1a977272707",
