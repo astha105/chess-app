@@ -1,7 +1,0 @@
-{
-  "name": "chess-app",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "flutter build web --release --base-href /"
-  }
-}
