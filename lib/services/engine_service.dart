@@ -2,34 +2,25 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class EngineService {
-  /// 🚀 LIVE Railway backend
+  // 🔥 CHANGE THIS TO YOUR RAILWAY DOMAIN
   static const String _base =
       "https://chess-app-production-34ba.up.railway.app";
 
-  /// Analyze full game using backend engine
   static Future<Map<String, dynamic>> analyzeGame(
-    List<String> moves,
-  ) async {
-    if (moves.isEmpty) {
-      return {"moves": []};
-    }
-
+      List<String> moves) async {
     final response = await http.post(
       Uri.parse("$_base/analyze-batch"),
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: {"Content-Type": "application/json"},
       body: jsonEncode({
-        "moves": moves, // ✅ backend expects THIS
+        "moves": moves, // ✅ MATCHES BACKEND
       }),
     );
 
     if (response.statusCode != 200) {
       throw Exception(
-        "Backend error ${response.statusCode}: ${response.body}",
-      );
+          "Backend error: ${response.statusCode} ${response.body}");
     }
 
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    return jsonDecode(response.body);
   }
 }
