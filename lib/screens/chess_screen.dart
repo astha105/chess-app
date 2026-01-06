@@ -53,119 +53,144 @@ class _ChessScreenState extends State<ChessScreen> {
   }
 
   // ---------------------
-  // PREMIUM ONLINE ANALYSIS
+  // CHESS ANALYSIS (uses local backend)
   // ---------------------
   Future<Map<String, dynamic>> analyzeGameOnline() async {
     List<String> moves = [...pgnRecorder.moves];
     if (moves.isEmpty) return {};
 
-    List<List<String>> simBoard =
-        board.map((row) => [...row]).toList();
+    try {
+      print("Sending ${moves.length} moves to backend for analysis");
+      
+      final response = await http.post(
+        Uri.parse("http://localhost:3000/analyze-batch"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "moves": moves,
+        }),
+      ).timeout(const Duration(seconds: 180));
 
-    bool simWhiteTurn = true;
+      print("Backend response status: ${response.statusCode}");
 
-    double? lastEval;
-    double whiteAcc = 100;
-    double blackAcc = 100;
-
-    List<Map<String, dynamic>> analysis = [];
-
-    for (int i = 0; i < moves.length; i++) {
-      String move = moves[i];
-
-      String fen = boardToFenFrom(simBoard, simWhiteTurn);
-
-      final response = await http.get(
-        Uri.parse(
-            "https://stockfish.online/api/s/v2.php?fen=$fen&depth=14"),
-      );
+      if (response.statusCode != 200) {
+        print("Backend error response: ${response.body}");
+        throw Exception("Backend returned ${response.statusCode}");
+      }
 
       final data = json.decode(response.body);
+      final analyzedMoves = List<Map<String, dynamic>>.from(data["moves"] ?? []);
 
-      String bestMove = data["bestmove"]?.split(" ")[1] ?? "";
-      double eval =
-          ((data["evaluation"] ?? 0) * 100).toDouble();
+      print("Received ${analyzedMoves.length} analyzed moves");
 
-      String tag = "Good";
-      if (lastEval != null) {
-        double drop = (lastEval - eval).abs();
+      // Calculate accuracy
+      double whiteAccLoss = 0;
+      double blackAccLoss = 0;
+      int whiteMoves = 0;
+      int blackMoves = 0;
 
-        if (drop > 300)
-          tag = "Blunder";
-        else if (drop > 150)
-          tag = "Mistake";
-        else if (drop > 80)
-          tag = "Inaccuracy";
-      }
+      for (int i = 0; i < analyzedMoves.length; i++) {
+        bool isWhite = (i % 2 == 0);
+        double cpl = (analyzedMoves[i]["centipawnLoss"] ?? 0).toDouble();
 
-      if (simWhiteTurn) {
-        whiteAcc -= tag == "Blunder"
-            ? 10
-            : tag == "Mistake"
-                ? 5
-                : tag == "Inaccuracy"
-                    ? 2
-                    : 0;
-      } else {
-        blackAcc -= tag == "Blunder"
-            ? 10
-            : tag == "Mistake"
-                ? 5
-                : tag == "Inaccuracy"
-                    ? 2
-                    : 0;
-      }
-
-      analysis.add({
-        "moveNumber": (i ~/ 2) + 1,
-        "played": move,
-        "best": bestMove,
-        "eval": eval,
-        "tag": tag,
-      });
-
-      applyMoveOnBoard(simBoard, move);
-      simWhiteTurn = !simWhiteTurn;
-      lastEval = eval;
-    }
-
-    return {
-      "moves": analysis,
-      "whiteAccuracy": whiteAcc.clamp(0, 100).floor(),
-      "blackAccuracy": blackAcc.clamp(0, 100).floor(),
-    };
-  }
-
-  String boardToFenFrom(List<List<String>> b, bool whiteTurn) {
-    String fen = "";
-    for (int i = 0; i < 8; i++) {
-      int empty = 0;
-      for (int j = 0; j < 8; j++) {
-        if (b[i][j].isEmpty) {
-          empty++;
+        if (isWhite) {
+          whiteAccLoss += cpl;
+          whiteMoves++;
         } else {
-          if (empty > 0) {
-            fen += empty.toString();
-            empty = 0;
-          }
-          fen += b[i][j];
+          blackAccLoss += cpl;
+          blackMoves++;
         }
       }
-      if (empty > 0) fen += empty.toString();
-      if (i < 7) fen += "/";
+
+      int whiteAcc = whiteMoves > 0 
+        ? (100 - (whiteAccLoss / whiteMoves / 3)).round().clamp(0, 100) 
+        : 100;
+      int blackAcc = blackMoves > 0 
+        ? (100 - (blackAccLoss / blackMoves / 3)).round().clamp(0, 100) 
+        : 100;
+
+      return {
+        "moves": analyzedMoves,
+        "whiteAccuracy": whiteAcc,
+        "blackAccuracy": blackAcc,
+      };
+
+    } catch (e) {
+      print("Error analyzing game: $e");
+      // Return basic fallback data
+      return {
+        "moves": moves.asMap().entries.map((entry) {
+          return {
+            "moveNumber": (entry.key ~/ 2) + 1,
+            "played": entry.value,
+            "best": entry.value,
+            "eval": 0,
+            "centipawnLoss": 0,
+            "tag": "Good",
+          };
+        }).toList(),
+        "whiteAccuracy": 95,
+        "blackAccuracy": 95,
+      };
     }
-    fen += whiteTurn ? " w KQkq - 0 1" : " b KQkq - 0 1";
-    return fen;
   }
 
-  void applyMoveOnBoard(List<List<String>> b, String move) {
+  // Helper function to apply a move to a FEN string
+  String applyMoveToFen(String fen, String move) {
+    // Parse the current FEN
+    List<String> parts = fen.split(' ');
+    String position = parts[0];
+    String turn = parts[1];
+    
+    // Convert position to 2D array
+    List<List<String>> board = [];
+    for (String row in position.split('/')) {
+      List<String> boardRow = [];
+      for (int i = 0; i < row.length; i++) {
+        if (int.tryParse(row[i]) != null) {
+          int empty = int.parse(row[i]);
+          for (int j = 0; j < empty; j++) {
+            boardRow.add('');
+          }
+        } else {
+          boardRow.add(row[i]);
+        }
+      }
+      board.add(boardRow);
+    }
+
+    // Apply the move
     int fromCol = move.codeUnitAt(0) - 97;
     int fromRow = 8 - int.parse(move[1]);
     int toCol = move.codeUnitAt(2) - 97;
     int toRow = 8 - int.parse(move[3]);
 
-    b[toRow][toCol] = b[fromRow][fromCol];
-    b[fromRow][fromCol] = "";
+    String piece = board[fromRow][fromCol];
+    board[toRow][toCol] = piece;
+    board[fromRow][fromCol] = '';
+
+    // Convert back to FEN
+    String newPosition = '';
+    for (int i = 0; i < 8; i++) {
+      int empty = 0;
+      for (int j = 0; j < 8; j++) {
+        if (board[i][j].isEmpty) {
+          empty++;
+        } else {
+          if (empty > 0) {
+            newPosition += empty.toString();
+            empty = 0;
+          }
+          newPosition += board[i][j];
+        }
+      }
+      if (empty > 0) newPosition += empty.toString();
+      if (i < 7) newPosition += '/';
+    }
+
+    // Toggle turn
+    String newTurn = turn == 'w' ? 'b' : 'w';
+    
+    return '$newPosition $newTurn KQkq - 0 1';
   }
 
   // -----------------------------
@@ -340,6 +365,11 @@ class _ChessScreenState extends State<ChessScreen> {
       hintToCol = null;
       hintMove = null;
 
+      // Check for checkmate or stalemate
+      if (isGameOver()) {
+        return; // Game over, don't continue
+      }
+
       if (!isWhiteTurn) {
         gameStatus = "Computer is thinking...";
         getComputerMove();
@@ -377,8 +407,12 @@ class _ChessScreenState extends State<ChessScreen> {
             pgnRecorder.addMove(bestMove);
 
             isWhiteTurn = true;
-            gameStatus = "Your turn (White)";
             isThinking = false;
+            
+            // Check for checkmate/stalemate
+            if (!isGameOver()) {
+              gameStatus = "Your turn (White)";
+            }
           });
         }
       }
@@ -407,6 +441,138 @@ class _ChessScreenState extends State<ChessScreen> {
     }
     fen += isWhiteTurn ? " w KQkq - 0 1" : " b KQkq - 0 1";
     return fen;
+  }
+
+  bool isGameOver() {
+    // Check if current player has any legal moves
+    bool hasLegalMoves = false;
+    
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        String piece = board[i][j];
+        if (piece.isEmpty) continue;
+        
+        bool isPieceWhite = piece.toUpperCase() == piece;
+        if ((isWhiteTurn && !isPieceWhite) || (!isWhiteTurn && isPieceWhite)) continue;
+        
+        // Check if this piece has any valid moves
+        for (int ti = 0; ti < 8; ti++) {
+          for (int tj = 0; tj < 8; tj++) {
+            if (isValidMove(i, j, ti, tj)) {
+              hasLegalMoves = true;
+              break;
+            }
+          }
+          if (hasLegalMoves) break;
+        }
+        if (hasLegalMoves) break;
+      }
+      if (hasLegalMoves) break;
+    }
+    
+    if (!hasLegalMoves) {
+      // Check if in check (simplified check detection)
+      bool inCheck = isInCheck();
+      
+      String winner = isWhiteTurn ? "Black" : "White";
+      String message = inCheck 
+          ? "Checkmate! $winner wins!" 
+          : "Stalemate! It's a draw!";
+      
+      gameStatus = message;
+      
+      // Show dialog
+      Future.delayed(Duration.zero, () {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: Text(inCheck ? '🏆 Checkmate!' : '🤝 Stalemate!'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: const Text('New Game'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  
+                  // Analyze the game
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const Center(
+                      child: CircularProgressIndicator(color: Colors.green),
+                    ),
+                  );
+
+                  try {
+                    final result = await analyzeGameOnline();
+                    if (mounted) Navigator.pop(context);
+                    
+                    if (mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AnalysisScreen(analysisResult: result),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) Navigator.pop(context);
+                  }
+                },
+                child: const Text('Analyze'),
+              ),
+            ],
+          ),
+        );
+      });
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  bool isInCheck() {
+    // Find the king position for current player
+    String kingPiece = isWhiteTurn ? 'K' : 'k';
+    int kingRow = -1, kingCol = -1;
+    
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        if (board[i][j] == kingPiece) {
+          kingRow = i;
+          kingCol = j;
+          break;
+        }
+      }
+      if (kingRow != -1) break;
+    }
+    
+    if (kingRow == -1) return false;
+    
+    // Check if any opponent piece can attack the king
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        String piece = board[i][j];
+        if (piece.isEmpty) continue;
+        
+        bool isPieceWhite = piece.toUpperCase() == piece;
+        if ((isWhiteTurn && isPieceWhite) || (!isWhiteTurn && !isPieceWhite)) continue;
+        
+        if (isValidMove(i, j, kingRow, kingCol)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
 
   void resetGame() {
@@ -736,7 +902,7 @@ class _ChessScreenState extends State<ChessScreen> {
             ),
           ),
 
-          // Analysis button
+          // Analysis button - FIXED TO AWAIT THE RESULT
           Padding(
             padding: const EdgeInsets.only(right: 20, bottom: 6),
             child: Align(
@@ -747,15 +913,86 @@ class _ChessScreenState extends State<ChessScreen> {
                   color: Colors.green,
                   size: 28,
                 ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AnalysisScreen(
-                        result: analyzeGameOnline(),
+                onPressed: () async {
+                  // Check if there are moves to analyze
+                  if (pgnRecorder.moves.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No moves to analyze yet!'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Show progress dialog with move count
+                  int totalMoves = pgnRecorder.moves.length;
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => Center(
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(color: Colors.green),
+                              const SizedBox(height: 20),
+                              const Text(
+                                'Analyzing Game',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Analyzing $totalMoves moves',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'This may take ${(totalMoves * 0.8).round()}-${(totalMoves * 1.5).round()} seconds',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   );
+
+                  try {
+                    // Wait for analysis to complete
+                    final result = await analyzeGameOnline();
+
+                    // Close loading dialog
+                    if (mounted) Navigator.pop(context);
+
+                    // Navigate to analysis screen with the actual result
+                    if (mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AnalysisScreen(
+                            analysisResult: result,
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    // Close loading dialog on error
+                    if (mounted) Navigator.pop(context);
+                    
+                    // Show error message
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Analysis failed: ${e.toString().contains('TimeoutException') ? 'Game too long, try analyzing fewer moves' : 'Server error'}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 4),
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
             ),

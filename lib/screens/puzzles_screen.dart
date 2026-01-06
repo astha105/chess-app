@@ -324,7 +324,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 1),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 2),
     );
   }
 

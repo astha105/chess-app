@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
+import 'puzzle_screen.dart'; // Add this import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -146,6 +147,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           Colors.greenAccent.withOpacity(0.25),
                           Colors.transparent
                         ],
+                        onTap: () {
+                          // Navigate to Puzzle Screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const PuzzleScreen()),
+                          );
+                        },
                       ),
 
                       const SizedBox(height: 20),
@@ -205,30 +213,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // Play Button (fixed bottom)
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.greenAccent,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 3,
-                    ),
-                    child: const Text(
-                      "Play",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
+                // // Play Button (fixed bottom)
+                // Container(
+                //   margin: const EdgeInsets.all(16),
+                //   width: double.infinity,
+                //   height: 55,
+                //   child: ElevatedButton(
+                //     onPressed: () {},
+                //     style: ElevatedButton.styleFrom(
+                //       backgroundColor: Colors.greenAccent,
+                //       foregroundColor: Colors.black,
+                //       shape: RoundedRectangleBorder(
+                //         borderRadius: BorderRadius.circular(10),
+                //       ),
+                //       elevation: 3,
+                //     ),
+                //     child: const Text(
+                //       "Play",
+                //       style: TextStyle(
+                //         fontSize: 20,
+                //         fontWeight: FontWeight.bold,
+                //       ),
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -248,9 +256,10 @@ class _HomeScreenState extends State<HomeScreen> {
     required String image,
     required String icon,
     required List<Color> gradientColors,
+    VoidCallback? onTap, // Added optional onTap parameter
   }) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap ?? () {}, // Use provided onTap or empty function
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
