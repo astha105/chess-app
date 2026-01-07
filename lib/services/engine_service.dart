@@ -2,23 +2,24 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class EngineService {
-  // 🔥 CHANGE THIS TO YOUR RAILWAY DOMAIN
-  static const String _base =
-      "https://chess-app-production-34ba.up.railway.app";
+  static const String _baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://127.0.0.1:3000',
+  );
 
-  static Future<Map<String, dynamic>> analyzeGame(
-      List<String> moves) async {
+  static Future<Map<String, dynamic>> analyzeGame(List<String> moves) async {
+    print("🔗 Calling $_baseUrl/analyze-batch");
+
     final response = await http.post(
-      Uri.parse("$_base/analyze-batch"),
+        Uri.parse("$_baseUrl/analyze-batch"),
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "moves": moves, // ✅ MATCHES BACKEND
-      }),
-    );
+      body: jsonEncode({"moves": moves}),
+    )
+    .timeout(const Duration(seconds: 15));
+  
 
     if (response.statusCode != 200) {
-      throw Exception(
-          "Backend error: ${response.statusCode} ${response.body}");
+      throw Exception(response.body);
     }
 
     return jsonDecode(response.body);

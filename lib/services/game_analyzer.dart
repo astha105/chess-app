@@ -1,5 +1,13 @@
 class GameAnalyzer {
   Map<String, dynamic> analyze(List<Map<String, dynamic>> moves) {
+    if (moves.isEmpty) {
+      return {
+        "moves": [],
+        "whiteAccuracy": 100,
+        "blackAccuracy": 100,
+      };
+    }
+
     final white = _score(moves, true);
     final black = _score(moves, false);
 

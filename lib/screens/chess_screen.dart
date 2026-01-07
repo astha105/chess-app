@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import 'dart:math' as math;
 import '../widgets/bottom_nav_bar.dart';
 import '../services/pgn_recorder.dart';
-import 'analysis_screen.dart';
+import '../services/engine_service.dart';
+import 'game_review_screen.dart';
 
 class ChessScreen extends StatefulWidget {
   const ChessScreen({super.key});
@@ -31,6 +31,7 @@ class _ChessScreenState extends State<ChessScreen> {
   int? hintFromCol;
   int? hintToRow;
   int? hintToCol;
+  bool _isAnalyzing = false; // Add flag to prevent multiple analysis calls
 
   final PGNRecorder pgnRecorder = PGNRecorder();
 
@@ -54,163 +55,91 @@ class _ChessScreenState extends State<ChessScreen> {
   }
 
   // ---------------------
-  // PREMIUM ONLINE ANALYSIS
+  // FIXED: Use backend batch analysis instead of calling API for each move
   // ---------------------
-  Future<Map<String, dynamic>> analyzeGameOnline() async {
+  Future<void> analyzeAndNavigate() async {
+    // Prevent multiple simultaneous analysis calls
+    if (_isAnalyzing) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Analysis already in progress')),
+        );
+      }
+      return;
+    }
+
+    List<String> moves = [...pgnRecorder.moves];
+    if (moves.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No moves to analyze')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isAnalyzing = true);
+
     try {
-      List<String> moves = [...pgnRecorder.moves];
-      if (moves.isEmpty) return {};
-
-      List<List<String>> simBoard =
-          board.map((row) => [...row]).toList();
-
-      bool simWhiteTurn = true;
-
-      double? lastEval;
-      List<double> whiteAccuracies = [];
-      List<double> blackAccuracies = [];
-
-      List<Map<String, dynamic>> analysis = [];
-
-      for (int i = 0; i < moves.length; i++) {
-        String move = moves[i];
-
-        String fen = boardToFenFrom(simBoard, simWhiteTurn);
-
-        try {
-          final response = await http.get(
-            Uri.parse(
-                "https://stockfish.online/api/s/v2.php?fen=$fen&depth=14"),
-          ).timeout(const Duration(seconds: 10));
-
-          if (response.statusCode != 200) {
-            continue;
-          }
-
-          final data = json.decode(response.body);
-
-          String bestMove = "";
-          if (data["bestmove"] != null) {
-            final parts = data["bestmove"].toString().split(" ");
-            if (parts.length > 1) {
-              bestMove = parts[1];
-            }
-          }
-
-          double eval = 0.0;
-          final rawEval = data["evaluation"];
-
-          if (rawEval is num) {
-            eval = rawEval.toDouble();
-          } else if (rawEval is String) {
-            if (rawEval.startsWith("#")) {
-              eval = rawEval.contains("-") ? -1000.0 : 1000.0;
-            } else {
-              eval = double.tryParse(rawEval) ?? 0.0;
-            }
-          }
-
-          String tag = "Good";
-          double centipawnLoss = 0;
-          double moveAccuracy = 100.0;
-          
-          if (lastEval != null) {
-            // Calculate centipawn loss based on whose turn it is
-            if (simWhiteTurn) {
-              // For white, if eval decreased, that's a loss
-              centipawnLoss = (lastEval - eval).clamp(0.0, double.infinity);
-            } else {
-              // For black, if eval increased (got more positive), that's a loss
-              centipawnLoss = (eval - lastEval).clamp(0.0, double.infinity);
-            }
-
-            // Determine move quality tag
-            if (centipawnLoss > 300)
-              tag = "Blunder";
-            else if (centipawnLoss > 150)
-              tag = "Mistake";
-            else if (centipawnLoss > 80)
-              tag = "Inaccuracy";
-
-            // Calculate accuracy for this move using chess.com-like formula
-            // Formula: accuracy = 103.1668 * e^(-0.04354 * centipawnLoss) - 3.1669
-            moveAccuracy = (103.1668 * math.exp(-0.04354 * centipawnLoss) - 3.1669).clamp(0.0, 100.0);
-            
-            // Add to respective player's accuracy list
-            if (simWhiteTurn) {
-              whiteAccuracies.add(moveAccuracy);
-            } else {
-              blackAccuracies.add(moveAccuracy);
-            }
-          }
-
-          analysis.add({
-            "moveNumber": (i ~/ 2) + 1,
-            "played": move,
-            "best": bestMove,
-            "eval": eval,
-            "tag": tag,
-            "centipawnLoss": centipawnLoss,
-          });
-
-          lastEval = eval;
-        } catch (e) {
-          // Skip this move if API call fails
-          continue;
-        }
-
-        applyMoveOnBoard(simBoard, move);
-        simWhiteTurn = !simWhiteTurn;
+      // Show loading dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Analyzing game...'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
       }
 
-      // Calculate average accuracy for each player
-      double whiteAcc = whiteAccuracies.isEmpty 
-          ? 100.0 
-          : whiteAccuracies.reduce((a, b) => a + b) / whiteAccuracies.length;
-      double blackAcc = blackAccuracies.isEmpty 
-          ? 100.0 
-          : blackAccuracies.reduce((a, b) => a + b) / blackAccuracies.length;
+      // Call backend batch analysis - ONE CALL for all moves
+      final result = await EngineService.analyzeGame(moves);
 
-      return {
-        "moves": analysis,
-        "whiteAccuracy": whiteAcc.round(),
-        "blackAccuracy": blackAcc.round(),
-      };
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Navigate to analysis screen
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GameReviewScreen(
+              analysisResult: result,
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      return {};
-    }
-  }
-
-  String boardToFenFrom(List<List<String>> b, bool whiteTurn) {
-    String fen = "";
-    for (int i = 0; i < 8; i++) {
-      int empty = 0;
-      for (int j = 0; j < 8; j++) {
-        if (b[i][j].isEmpty) {
-          empty++;
-        } else {
-          if (empty > 0) {
-            fen += empty.toString();
-            empty = 0;
-          }
-          fen += b[i][j];
-        }
+      // Close loading dialog if open
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Analysis failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-      if (empty > 0) fen += empty.toString();
-      if (i < 7) fen += "/";
+    } finally {
+      if (mounted) {
+        setState(() => _isAnalyzing = false);
+      }
     }
-    fen += whiteTurn ? " w KQkq - 0 1" : " b KQkq - 0 1";
-    return fen;
-  }
-
-  void applyMoveOnBoard(List<List<String>> b, String move) {
-    int fromCol = move.codeUnitAt(0) - 97;
-    int fromRow = 8 - int.parse(move[1]);
-    int toCol = move.codeUnitAt(2) - 97;
-    int toRow = 8 - int.parse(move[3]);
-
-    b[toRow][toCol] = b[fromRow][fromCol];
-    b[fromRow][fromCol] = "";
   }
 
   // -----------------------------
@@ -231,7 +160,7 @@ class _ChessScreenState extends State<ChessScreen> {
       final response = await http.get(
         Uri.parse(
             "https://stockfish.online/api/s/v2.php?fen=$fen&depth=12"),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -401,7 +330,7 @@ class _ChessScreenState extends State<ChessScreen> {
       final response = await http.get(
         Uri.parse(
             "https://stockfish.online/api/s/v2.php?fen=$fen&depth=12"),
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -428,7 +357,12 @@ class _ChessScreenState extends State<ChessScreen> {
         }
       }
     } catch (e) {
-      isThinking = false;
+      if (mounted) {
+        setState(() {
+          isThinking = false;
+          gameStatus = "Your turn (White)";
+        });
+      }
     }
   }
 
@@ -471,6 +405,7 @@ class _ChessScreenState extends State<ChessScreen> {
       hintToRow = null;
       hintToCol = null;
       pgnRecorder.moves.clear();
+      _isAnalyzing = false;
     });
   }
 
@@ -781,31 +716,18 @@ class _ChessScreenState extends State<ChessScreen> {
             ),
           ),
 
-          // Analysis button
+          // Analysis button - FIXED: calls analyzeAndNavigate() once
           Padding(
             padding: const EdgeInsets.only(right: 20, bottom: 6),
             child: Align(
               alignment: Alignment.centerRight,
               child: IconButton(
-                icon: const Icon(
-                  Icons.analytics_outlined,
-                  color: Colors.green,
+                icon: Icon(
+                  _isAnalyzing ? Icons.hourglass_empty : Icons.analytics_outlined,
+                  color: _isAnalyzing ? Colors.orange : Colors.green,
                   size: 28,
                 ),
-                onPressed: () async {
-                  final result = await analyzeGameOnline();
-
-                  if (!mounted) return;
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AnalysisScreen(
-                        analysisResult: result,
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _isAnalyzing ? null : analyzeAndNavigate,
               ),
             ),
           ),
