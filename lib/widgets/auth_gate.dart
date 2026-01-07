@@ -17,12 +17,10 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        // 🔑 User logged in (Google / Email / Guest)
         if (snapshot.hasData) {
           return const HomeScreen();
         }
 
-        // ❌ Not logged in
         return const LoginScreen();
       },
     );

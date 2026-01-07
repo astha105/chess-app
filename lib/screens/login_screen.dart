@@ -1,5 +1,4 @@
 // ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +7,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../services/user_service.dart';
 import '../widgets/chessboard_background_painter.dart';
 import 'signup_screen.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,20 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _loading = true);
 
       if (kIsWeb) {
-        // 🌐 WEB
         final provider = GoogleAuthProvider();
         await _auth.signInWithPopup(provider);
       } else {
-        // 📱 MOBILE
-        final GoogleSignInAccount? googleUser =
-            await GoogleSignIn().signIn();
-        if (googleUser == null) {
-          setState(() => _loading = false);
-          return;
-        }
+        final googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) return;
 
         final googleAuth = await googleUser.authentication;
-
         final credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
@@ -51,15 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await _auth.signInWithCredential(credential);
       }
 
-      // 🔥 Create Firestore user
       await UserService.createUserIfNotExists("google");
-
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
     } catch (e) {
       _showError("Google sign-in failed");
     } finally {
@@ -68,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // =========================
-  // GUEST LOGIN (FIXED FOR WEB)
+  // GUEST LOGIN (WEB + MOBILE FIX)
   // =========================
   Future<void> _signInAsGuest() async {
     try {
@@ -77,12 +60,6 @@ class _LoginScreenState extends State<LoginScreen> {
       await _auth.signInAnonymously();
       await UserService.createUserIfNotExists("guest");
 
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
     } catch (e) {
       _showError("Guest login failed");
     } finally {
@@ -96,20 +73,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // =========================
-  // UI (MATCHES SIGNUP SCREEN)
+  // UI (MATCHES SIGNUP)
   // =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          /// ♟ Chessboard background
           CustomPaint(
             size: MediaQuery.of(context).size,
             painter: ChessboardBackgroundPainter(),
           ),
-
-          /// Glow
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -122,11 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
-          /// Dark overlay
           Container(color: Colors.black.withOpacity(0.3)),
 
-          /// Content
           SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 60),
             child: Column(
@@ -135,20 +106,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: Colors.white70,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                    const SizedBox(width: 40),
                     GestureDetector(
                       onTap: () {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const SignupScreen(),
-                          ),
+                              builder: (_) => const SignupScreen()),
                         );
                       },
                       child: const Text(
@@ -167,7 +131,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const Text(
                   "Play Chess",
-                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 32,
@@ -189,50 +152,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 40),
 
-                // Pawn
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 180,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            Colors.greenAccent.withOpacity(0.4),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                    Image.asset(
-                      "assets/images/chess_pawn.png",
-                      height: 130,
-                    ),
-                  ],
-                ),
+                Image.asset("assets/images/chess_pawn.png", height: 130),
 
                 const SizedBox(height: 50),
 
-                // Card
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.55),
                     borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.7),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                      BoxShadow(
-                        color: Colors.greenAccent.withOpacity(0.1),
-                        blurRadius: 25,
-                        spreadRadius: 3,
-                      ),
-                    ],
                   ),
                   child: Column(
                     children: [
