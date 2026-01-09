@@ -1,5 +1,6 @@
 // ignore_for_file: unused_field
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -9,8 +10,8 @@ class EngineService {
   // ⚙️ CONFIGURATION - Set your local IP here
   static const String _localIp = "192.168.0.110";
   
-  // Production backend URL
-  static const String _prodUrl = "https://chess-api.onrender.com";
+  // ⭐ Production backend URL - RAILWAY PUBLIC URL
+  static const String _prodUrl = "https://chess-app-backend-production-5d7e.up.railway.app";
   
   /// 🎯 Smart URL Selection - Works for ALL environments
   static String get baseUrl {
@@ -72,6 +73,7 @@ class EngineService {
     try {
       debugPrint("🔗 [analyzeGame] Calling: $url");
       debugPrint("📊 [analyzeGame] Moves: ${moves.length}");
+      debugPrint("🌍 [analyzeGame] Platform: ${kIsWeb ? 'Web' : 'Mobile'} | Mode: ${kReleaseMode ? 'Release' : 'Debug'}");
 
       final response = await http
           .post(
@@ -80,7 +82,7 @@ class EngineService {
             body: jsonEncode({"moves": moves}),
           )
           .timeout(
-            const Duration(seconds: 20),
+            const Duration(seconds: 30),
             onTimeout: () {
               throw Exception("Request timeout - backend not responding");
             },
@@ -94,13 +96,16 @@ class EngineService {
       }
 
       final result = jsonDecode(response.body) as Map<String, dynamic>;
-      debugPrint("📥 [analyzeGame] Success");
+      debugPrint("📥 [analyzeGame] Success - ${result['moves']?.length ?? 0} moves analyzed");
       return result;
       
     } on SocketException catch (e) {
       debugPrint("❌ [analyzeGame] Connection failed: $e");
       debugPrint("💡 Make sure backend is running at: $_effectiveUrl");
-      throw Exception("Cannot connect to backend. Is it running?");
+      throw Exception("Cannot connect to backend. Check your connection.");
+    } on TimeoutException catch (e) {
+      debugPrint("❌ [analyzeGame] Timeout: $e");
+      throw Exception("Analysis timed out. Try a shorter game.");
     } catch (e) {
       debugPrint("❌ [analyzeGame] Exception: $e");
       rethrow;
@@ -144,7 +149,10 @@ class EngineService {
     } on SocketException catch (e) {
       debugPrint("❌ [analyzeFen] Connection failed: $e");
       debugPrint("💡 Make sure backend is running at: $_effectiveUrl");
-      throw Exception("Cannot connect to backend. Is it running?");
+      throw Exception("Cannot connect to backend. Check your connection.");
+    } on TimeoutException catch (e) {
+      debugPrint("❌ [analyzeFen] Timeout: $e");
+      throw Exception("Analysis timed out. Please try again.");
     } catch (e) {
       debugPrint("❌ [analyzeFen] Exception: $e");
       rethrow;
@@ -164,10 +172,19 @@ class EngineService {
           .timeout(const Duration(seconds: 5));
       
       final healthy = response.statusCode == 200;
-      debugPrint(healthy ? "✅ Backend is healthy" : "❌ Backend unhealthy");
+      if (healthy) {
+        final data = jsonDecode(response.body);
+        debugPrint("✅ Backend is healthy - ${data['status']}");
+      } else {
+        debugPrint("❌ Backend unhealthy - Status: ${response.statusCode}");
+      }
       return healthy;
     } on SocketException catch (e) {
       debugPrint("❌ Health check failed - Connection error: $e");
+      debugPrint("💡 Trying to reach: $_effectiveUrl/health");
+      return false;
+    } on TimeoutException catch (e) {
+      debugPrint("❌ Health check timeout: $e");
       return false;
     } catch (e) {
       debugPrint("❌ Health check failed: $e");

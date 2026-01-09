@@ -1,11 +1,15 @@
 {
-  "installCommand": "curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.24.5-stable.tar.xz | tar -xJ && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter config --no-analytics && flutter doctor",
-  "buildCommand": "export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter build web --release",
-  "outputDirectory": "build/web",
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "build/web/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/build/web/$1"
     }
   ]
 }

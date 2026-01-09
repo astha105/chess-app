@@ -7,7 +7,7 @@ import 'dart:async';
 import '../widgets/bottom_nav_bar.dart';
 import '../services/pgn_recorder.dart';
 import '../services/engine_service.dart';
-import 'game_review_screen.dart';
+import 'game_review_screen.dart'; // ← ADDED THIS IMPORT
 
 class ChessScreen extends StatefulWidget {
   const ChessScreen({super.key});
@@ -112,7 +112,7 @@ class _ChessScreenState extends State<ChessScreen> {
         Navigator.of(context).pop();
       }
 
-      // Navigate to analysis screen
+      // Navigate to analysis screen - FIXED: Changed to GameReviewScreen
       if (mounted) {
         await Navigator.push(
           context,
